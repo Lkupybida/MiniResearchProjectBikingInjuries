@@ -1,0 +1,67 @@
+```{r}
+data=read.csv("out.csv")
+data = data[data$BikeAge!="999",]
+data$BikeAge = as.numeric(as.character(data$BikeAge))
+data = data[!is.na(data$BikeAge),]
+data
+```
+
+So, we decided to conduct a research about bike crashes. We use French statistics from 2007 to 2019. Some (most part) of data we won't use due to their uselessness. There are some functions. It's not necessary to pay attention here.
+
+```{r}
+pie_diagram = function(list)
+{
+  vals = c()
+  names = c()
+  for (i in unique(list))
+  {
+    vals = append(vals, length(list[list==i]))
+    names = append(names, i)
+  }
+  pie(vals,names)
+}
+hist_diagram = function(list)
+{
+  hist(x=strtoi(list), breaks=100)
+}
+plot_all = function(data)
+{
+  pie_names = c("AmbulanceR", "BikeInjury","RuralUrban","BikeSex",       "TraffCntrl",  "SpeedLimit",
+  "LightCond",  "Region" ,    "Weather" )
+  hist_names = c("BikeAge", "CrashHour")
+  for (i in pie_names)
+    pie_diagram(as.list(data[i])[[1]])
+  for (i in hist_names)
+    hist_diagram(as.list(data[i])[[1]])
+}
+sum_of_normal_d = function(data, label = "")
+{
+  list = as.list(data["BikeAge"])[[1]]
+  N=10000
+  new_data = rnorm(N, mean = c(18,49), sd=c(7,11))
+  hist(x=strtoi(list), prob=TRUE,breaks=40, main = label, xlab = "Age")
+  lines(density(new_data), col = "green", lwd = 4)
+}
+```
+
+# Hypothesis number. 1
+
+If we plot histogram of people, who got into crash, we see, that it is very likely to be the sum of two normal distributions. Really, if we plot density function for distribution, which contains sum of two normal distribution with parameters $\mathcal{N}(18, 49^2)$ and $\mathcal{N}(7,11^2)$ we get following graph:
+
+
+```{r}
+sum_of_normal_d(data, "Data of the all time")
+```
+
+Let's compare it to crash results of all years
+```{r}
+for (i in 2007:2019)
+  sum_of_normal_d(data[data$CrashYear==i,], paste("Data of the year ", as.character(i)))
+```
+
+# Hypothesis number. 2
+
+```{r}
+plot_all(data[data$CrashHour>=20 & 4<=data$CrashHour])
+```
+```

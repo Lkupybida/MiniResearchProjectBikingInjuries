@@ -1,0 +1,222 @@
+# Mini research
+
+## Setting up the data
+
+### Libraries
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+### Data loading
+
+```{r}
+accidents_data <- read.csv("~/Desktop/probbability/mini_research/archive/Accidents.csv")
+bikers_data <- read.csv("~/Desktop/probbability/mini_research/archive/Bikers.csv")
+
+missing_rows <- anti_join(bikers_data, accidents_data, by = "Accident_Index")
+
+bikers_data <- filter(bikers_data, !Accident_Index %in% missing_rows$Accident_Index)
+
+selected_col <- cbind(accidents_data[, c("Accident_Index",
+                                     "Date",
+                                     "Time",
+                                     "Day",
+                                     "Road_type",
+                                     "Speed_limit",
+                                     "Road_conditions",
+                                     "Weather_conditions",
+                                     "Light_conditions")],
+                                      bikers_data[, "Severity"])
+
+colnames(selected_col)[ncol(selected_col)] <- "Severity"
+
+
+```
+
+### Cleaning the data
+
+```{r}
+remove_unknown_rows <- function(dataframe) {
+  for (col in colnames(dataframe)) {
+    dataframe <- dataframe[!grepl("Unknown", dataframe[[col]], ignore.case = TRUE), ]
+    dataframe <- dataframe[!grepl("Missing data", dataframe[[col]], ignore.case = TRUE), ]
+  }
+  return(dataframe)
+}
+tidy_num <- remove_unknown_rows(selected_col)
+```
+
+### Selecting data
+
+```{r}
+selected_col_num <- cbind(tidy_num[, c("Accident_Index",
+                                             "Date",
+                                             "Time",
+                                             "Day",
+                                             "Speed_limit",
+                                             "Light_conditions")])
+```
+
+## Converting to numeric
+
+### Lists for numerisation
+
+```{r}
+Road_type_list <- c("Slip road", # denoted by 1
+                    "One way sreet", # denoted by 2
+                    "Single carriageway", # denoted by 3
+                    "Dual carriageway", # denoted by 4
+                    "Roundabout") # denoted by 5
+
+Road_conditions_list <- c("Dry", # denoted by 1
+                          "Wet", # denoted by 2
+                          "Snow", # denoted by 3
+                          "Frost", # denoted by 4
+                          "Flood") # denoted by 5
+
+Weather_conditions_list <- c("Clear", # denoted by 1
+                             "Clear and windy", # denoted by 2
+                             "Fog", # denoted by 3
+                             "Rain", # denoted by 4
+                             "Rain and windy", # denoted by 5
+                             "Snow", # denoted by 6
+                             "Snow and windy", # denoted by 7
+                             "Other") # denoted by 8
+
+Light_conditions_list <- c("Daylight", # denoted by 1
+                           "Darkness lights lit", # denoted by 2
+                           "Darkness no lights") # denoted by 3
+
+Severity_list <- c("Slight", # denoted by 1
+                   "Serious", # denoted by 2
+                   "Fatal") # denoted by 3
+```
+
+### Numerisation function
+
+```{r}
+convert_to_numeric <- function(selected_col, column_name, value_list) {
+  unique_values <- unique(selected_col[[column_name]])
+  
+  name_numeric <- paste0(column_name, "_num")
+  cat("\nUnique values in ", column_name, ":\n")
+  
+  # Print custom mapping
+  for (i in seq_along(value_list)) {
+    cat(i, " = ", value_list[i], "\n")
+  }
+  
+  selected_col <- selected_col %>%
+    mutate(!!name_numeric := match(selected_col[[column_name]], value_list))
+  
+  return(selected_col[, name_numeric, drop = FALSE])
+}
+cat("Translations: \n")
+selected_col_num <- cbind(selected_col_num, convert_to_numeric(tidy_num, 
+                                                               "Road_conditions",
+                                                               Road_conditions_list))
+selected_col_num <- cbind(selected_col_num, convert_to_numeric(tidy_num, 
+                                                               "Weather_conditions",
+                                                               Weather_conditions_list))
+selected_col_num <- cbind(selected_col_num, convert_to_numeric(tidy_num, 
+                                                               "Light_conditions",
+                                                               Light_conditions_list))
+selected_col_num <- cbind(selected_col_num, convert_to_numeric(tidy_num, 
+                                                               "Severity",
+                                                               Severity_list))
+```
+
+## Stats
+
+### Daily crash frequency
+
+```{r}
+data <- data.frame(table(selected_col_num$Day))
+data <- data[order(-data$Freq), ]
+
+# Increase the bottom and right margins
+par(mar=c(6, 4, 3, 3))  # Adjust the second and fourth values as needed
+
+barplot(data$Freq, names.arg = data$Var1, 
+        las = 2, col = "skyblue", 
+        main = "Accident Counts by Day of the week", 
+        xlab = "", 
+        ylab = "",
+        ylim = c(0, 150000))
+
+# Add the number of accidents above each column with adjusted x-coordinates
+text(x = seq_along(data$Var1)*1.22-0.55, y = data$Freq + 5000, labels = data$Freq, pos = 3, cex = 0.8, col = "black", xpd = TRUE)
+```
+
+### Road type crashes
+
+```{r}
+data <- data.frame(table(tidy_num$Road_type))
+data <- data[order(-data$Freq), ]
+
+# Increase the bottom and right margins
+par(mar=c(8.2, 4, 3, 3))  # Adjust the second and fourth values as needed
+
+barplot(data$Freq, names.arg = data$Var1, 
+        las = 2, col = "skyblue", 
+        main = "Accident Counts by Road type", 
+        xlab = "", 
+        ylab = "",
+        ylim = c(0, 700000))
+
+# Add the number of accidents above each column with adjusted x-coordinates
+text(x = seq_along(data$Var1)*1.22-0.55, y = data$Freq + 5000, labels = data$Freq, pos = 3, cex = 0.8, col = "black", xpd = TRUE)
+```
+
+## Plotting
+
+### Plotting function
+
+```{r}
+generate_mean_plot <- function(data, x_col, y_col, title, x_label, y_label) {
+    mean_df <- aggregate(data[[y_col]] ~ data[[x_col]], data = data, FUN = mean)
+    
+    ggplot(mean_df, aes(x = .data[["data[[x_col]]"]], y = .data[["data[[y_col]]"]])) +
+      geom_line(color = "blue", size = 1) +
+      geom_ribbon(aes(ymin = min(.data[["data[[y_col]]"]])-0.01, ymax = .data[["data[[y_col]]"]]), fill = "blue", 
+                  alpha = 0.3) + 
+      labs(x = x_label, y = y_label, title = title) +
+      theme_minimal() +
+      theme(axis.text = element_text(size = 12),
+            axis.title = element_text(size = 14, face = "bold"),
+            plot.title = element_text(size = 16, face = "bold")) +
+      theme(panel.grid.major = element_line(color = "gray", linetype = "dashed"),
+            panel.grid.minor = element_blank())
+
+}
+```
+
+### Injuries vs speed limits
+
+```{r}
+generate_mean_plot(selected_col_num, "Speed_limit", "Severity_num",
+                   "Mean injury at different speed limits",
+                   "Speed Limit",
+                   "Mean injury")
+```
+
+### Severity vs light situation
+
+```{r}
+generate_mean_plot(selected_col_num, "Light_conditions_num", "Severity_num",
+                   "Mean injury in different light condition",
+                   "Light conditions",
+                   "Mean injury")
+```
+
+Mean light condition vs severity
+
+```{r}
+generate_mean_plot(selected_col_num, "Severity_num", "Light_conditions_num",
+                   "Mean light conditions for different injuries",
+                   "Mean injury",
+                   "Light conditions")
+```

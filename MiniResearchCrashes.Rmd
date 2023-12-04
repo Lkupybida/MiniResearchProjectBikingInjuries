@@ -1,0 +1,155 @@
+First we read our file choose with what information we will work.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+my_data <- read.csv("~/Desktop/probbability/mini_research/Austin Bicycle Crashes 2010-2017.csv")
+
+
+new_df <- my_data[, c(          "Crash.Time",
+                                "Day.of.Week",
+                                
+                                "Light.Condition",
+                                "Weather.Condition",
+                                
+                                "Speed.Limit",
+                                "Average.Daily.Traffic.Amount",
+                                "Manner.of.Collision",
+                                "Traffic.Control.Type",
+                                "Intersection.Related",
+                                
+                                "Person.Helmet",
+                                "Crash.Severity")]
+
+colnames(my_data)
+```
+
+We can see lots of different columns, some of them are pretty useless for example "Person.Type" contains only one type - "Pedalcyclist", also columns that describe injury are summed up in "Crash.Severity" and"Crash.Total.Injury.Count" columns. And for example column - "Active.School.Zone.Flag" is true only in few of entries, so we decided to focus on more general conditions. Therefore we made new_df which contains data with which we will work from now on.
+
+Then we can play a little bit with data to understand wide picture. For example lets see how crashes are distributed among Traffic Control Type
+
+```{r}
+data <- data.frame(table(new_df$Traffic.Control.Type))
+data <- data[order(-data$Freq), ]
+par(mar=c(15, 3, 3, 1)) # 15 line height for bottom margin
+barplot(data$Freq, names.arg = data$Var1, 
+        las = 2, col = "skyblue", 
+        main = "Accident Counts by Traffic Control Type", 
+        xlab = "", 
+        ylab = "Frequency")
+text(x = seq_along(data$Var1)*1.22-0.55, y = data$Freq, labels = data$Freq, pos = 3, cex = 0.8, col = "black", xpd = TRUE)
+```
+
+We can see what are the most popular types of places where people usually crash. For example stop signs and signal lights are popular paces for a crash to happen.
+
+```{r}
+data <- data.frame(table(new_df$Day.of.Week))
+data <- data[order(-data$Freq), ]
+par(mar=c(6, 3, 3, 1)) # 15 line height for bottom margin
+barplot(data$Freq, names.arg = data$Var1, 
+        las = 2, col = "skyblue", 
+        main = "Accident Counts by Day of the week", 
+        xlab = "", 
+        ylab = "Frequency")
+text(x = seq_along(data$Var1)*1.22-0.55, y = data$Freq, labels = data$Freq, pos = 3, cex = 0.8, col = "black", xpd = TRUE)
+```
+
+Here we can argue that people ride less on Sunday and Saturday that is why they are at the bottom, but Friday and Monday are all working days, but they are quite far off.
+
+Let\`s now for example build a model that checks how does Severity of a crash depends on Speed Limit on the road.
+
+```{r}
+#Let`s see what is inside Crash.Severity column
+data.frame(table(new_df$Crash.Severity))
+
+```
+
+```{r}
+# Assign each injury a numeric value
+new_df$Crash.Numeric <- ifelse(new_df$Crash.Severity=="Not Injured", 1,
+                    ifelse(new_df$Crash.Severity=="Possible Injury", 2,
+                    ifelse(new_df$Crash.Severity=="Non-Incapacitating Injury", 3, 
+                    ifelse(new_df$Crash.Severity=="Incapacitating Injury", 4,
+                    ifelse(new_df$Crash.Severity=="Killed", 5, 6)))))
+# Delete unknown values
+new_df <- subset(new_df, Crash.Numeric != 6)
+```
+
+As we already have speed limit as a numeric value, we leave it as is
+
+```{r}
+# Create function that plots dependency y on x, it calculates mean value
+# for each y.
+generate_mean_plot <- function(data, x_col, y_col, title, x_label, y_label) {
+    mean_df <- aggregate(data[[y_col]] ~ data[[x_col]], data = data, FUN = mean)
+    
+    ggplot(mean_df, aes(x = .data[["data[[x_col]]"]], y = .data[["data[[y_col]]"]])) +
+        geom_point(position = position_dodge(width = 0.2)) +
+        labs(x = x_label, y = y_label, title = title)
+    
+}
+
+# Use speed limei as x, and y as Severity
+
+generate_mean_plot(new_df, 
+                    "Speed.Limit", "Crash.Numeric",
+                   "Mean of overall crash Severity for Speed Limit",
+                   "Speed Limit",
+                   "Mean Crash Severity")
+```
+
+From this plot it we can already assume some relation between two values, that confirms saying - "The quieter you go, the further you'll get.")
+
+Even though it is Intermediate report lets quickly fit some regression to this plot...
+
+```{r}
+df_severity_speed <- aggregate(new_df[["Crash.Numeric"]] ~ new_df[["Speed.Limit"]], data = new_df, FUN = mean)
+colnames(df_severity_speed) <- c('Speed.Limit','CrashMean') 
+
+# Attempt to build linear regression
+relation <- lm(df_severity_speed$CrashMean~df_severity_speed$Speed.Limit)
+y <- df_severity_speed$CrashMean
+x <- df_severity_speed$Speed.Limit
+ggplot(df_severity_speed, aes(Speed.Limit, CrashMean)) +
+        geom_point(position = position_dodge(width = 0.2)) +
+        labs(x = "Speed Limit", y = "Crash Severity Mean", title = "Speed Limit & Crash Mean(Linear Regression)") + 
+        geom_smooth(method = "lm", se = FALSE)
+       
+
+# Attemplt to build polyniomial regression
+df_severity_speed$Speed.Limit2 = df_severity_speed$Speed.Limit^2
+
+poly_reg = lm(formula = CrashMean ~ .,data = df_severity_speed)
+
+x_grid = seq(min(df_severity_speed$Speed.Limit), max(df_severity_speed$Speed.Limit), 0.1)
+ggplot() +
+  geom_point(aes(x = df_severity_speed$Speed.Limit, y = df_severity_speed$CrashMean),
+             colour = 'black') +
+  geom_line(aes(x = x_grid, y = predict(poly_reg,
+                                        newdata = data.frame(Speed.Limit = x_grid,
+                                                             Speed.Limit2 = x_grid^2))),
+            colour = 'blue') +
+  ggtitle('Speed Limit & Crash Mean (Polynomial Regression)') +
+  xlab('Speed Limit') +
+  ylab('Crash Severity Mean')
+
+```
+
+Building something like dependency between light condition and time of the day concludes that our model works.
+
+```{r}
+new_df$Light.Numeric <- ifelse(new_df$Light.Condition=="Dusk", 5,
+                    ifelse(new_df$Light.Condition=="Daylight", 4,
+                    ifelse(new_df$Light.Condition=="Dawn", 3, 
+                    ifelse(new_df$Light.Condition=="Dark, Not Lighted", 2,
+                    ifelse(new_df$Light.Condition=="Dark, Lighted", 1, 6)))))
+# Delete unknown values
+new_df <- subset(new_df, Light.Numeric != 6)
+generate_mean_plot(new_df, 
+                    "Crash.Time", "Light.Numeric",
+                   "Time of the day and light comdition",
+                   "Time of the day",
+                   "Light quality higher -> better")
+```
+
+So relation between Speed Limit and Severity of crash is one that we tried to derive, next on this project we plan to test this relation, on our data and maybe on different data set even. Also we have lots of useful and interesting data left out, we plan to come up with more complex model that predicts some aspect of Crash based on known parameters such as weather condition, light condition, traffic or something similar, of course testing of this model will be required. That is all our plan for now, we will do our best to finish this project...
