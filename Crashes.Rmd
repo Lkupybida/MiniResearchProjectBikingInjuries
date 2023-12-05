@@ -1,3 +1,5 @@
+# Interim version !NOT FINAL!
+
 # Mini research
 
 ## Setting up the data
@@ -15,8 +17,8 @@ library(ggplot2)
 #### UK 1974-2017
 
 ```{r}
-accidents_data <- read.csv("~/Desktop/probbability/mini_research/archive/Accidents.csv")
-bikers_data <- read.csv("~/Desktop/probbability/mini_research/archive/Bikers.csv")
+accidents_data <- read.csv("Accidents.csv")
+bikers_data <- read.csv("Bikers.csv")
 
 missing_rows <- anti_join(bikers_data, accidents_data, by = "Accident_Index")
 
@@ -39,7 +41,7 @@ colnames(selected_col)[ncol(selected_col)] <- "Severity"
 #### Austin 2010-2017
 
 ```{r}
-my_data <- read.csv("~/Desktop/probbability/mini_research/Austin Bicycle Crashes 2010-2017.csv")
+my_data <- read.csv("Austin Bicycle Crashes 2010-2017.csv")
 
 
 new_df <- my_data[, c(          "Crash.Time",
@@ -282,8 +284,6 @@ text(x = seq_along(data_austin$Var1)*1.22-0.55, y = data_austin$Freq, labels = d
 ### Motorbikes
 
 #### Age to crash density
-
-
 
 ## Plotting
 
