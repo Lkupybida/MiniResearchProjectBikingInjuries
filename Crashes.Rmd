@@ -1,4 +1,4 @@
-# Interim version !NOT FINAL!
+#  Interim version !NOT FINAL!
 
 # Mini research
 
@@ -17,8 +17,8 @@ library(ggplot2)
 #### UK 1974-2017
 
 ```{r}
-accidents_data <- read.csv("Accidents.csv")
-bikers_data <- read.csv("Bikers.csv")
+accidents_data <- read.csv("~/Documents/GitHub/MiniResearchProjectBikingInjuries/datasets/Accidents.csv")
+bikers_data <- read.csv("~/Documents/GitHub/MiniResearchProjectBikingInjuries/datasets/Bikers.csv")
 
 missing_rows <- anti_join(bikers_data, accidents_data, by = "Accident_Index")
 
@@ -41,7 +41,7 @@ colnames(selected_col)[ncol(selected_col)] <- "Severity"
 #### Austin 2010-2017
 
 ```{r}
-my_data <- read.csv("Austin Bicycle Crashes 2010-2017.csv")
+my_data <- read.csv("~/Documents/GitHub/MiniResearchProjectBikingInjuries/datasets/Austin Bicycle Crashes 2010-2017.csv")
 
 
 new_df <- my_data[, c(          "Crash.Time",
@@ -65,7 +65,7 @@ colnames(my_data)
 #### Motorbikes
 
 ```{r}
-data=read.csv("out.csv")
+data=read.csv("~/Documents/GitHub/MiniResearchProjectBikingInjuries/datasets/out.csv")
 data = data[data$BikeAge!="999",]
 data$BikeAge = as.numeric(as.character(data$BikeAge))
 data = data[!is.na(data$BikeAge),]
